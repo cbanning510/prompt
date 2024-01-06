@@ -6,7 +6,7 @@ const App = () => {
   const [forms, setForms] = useState([
     {
       version: 1.0,
-      name: "Initial Version", // Add a name field
+      name: "Version 1", // Add a name field
       fields: [
         { label: "SYSTEM", value: "" },
         { label: "USER", value: "" },
@@ -118,10 +118,13 @@ const App = () => {
     // Deep copy the fields
     const duplicatedFields = currentForm.fields.map((field) => ({ ...field }));
 
-    // Create a new version
+    // Determine the name for the new version
+    const newVersionName = `Version ${newVersionNumber} (copy of Version ${currentVersion})`;
+
+    // Create a new version with the determined name
     const newVersion = {
       version: newVersionNumber,
-      name: `Version ${newVersionNumber}`, // Default name for the new version
+      name: newVersionName,
       fields: duplicatedFields,
     };
 
@@ -178,7 +181,7 @@ const App = () => {
               >
                 {forms.map((form) => (
                   <option key={form.version} value={form.version}>
-                    {form.name} (Version {form.version}){" "}
+                    {form.name || `Version ${form.version}`}
                     {/* Display the version name */}
                   </option>
                 ))}
@@ -196,10 +199,14 @@ const App = () => {
               </button>
             </div>
             <div className="row mb-3">
-              <div className="col-md-3">
+              <div className="col-md-3 mt-1">
+                <label htmlFor="versionName" className="form-label">
+                  Version Name:
+                </label>
                 <input
                   type="text"
                   className="form-control"
+                  id="versionName"
                   placeholder="Enter version name"
                   value={
                     forms.find((form) => form.version === currentVersion)
