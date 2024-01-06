@@ -6,6 +6,7 @@ const App = () => {
   const [forms, setForms] = useState([
     {
       version: 1.0,
+      name: "Initial Version", // Add a name field
       fields: [
         { label: "SYSTEM", value: "" },
         { label: "USER", value: "" },
@@ -14,6 +15,7 @@ const App = () => {
   ]);
   const [currentVersion, setCurrentVersion] = useState(1.0);
   const [currentForm, setCurrentForm] = useState(forms[0]);
+  const [highestVersion, setHighestVersion] = useState(1.0);
 
   const textAreaRef = useRef([]);
 
@@ -29,6 +31,13 @@ const App = () => {
     currentForm.fields.forEach((_, index) => adjustHeight(index));
   }, [currentForm.fields]);
 
+  const handleVersionNameChange = (e, version) => {
+    const updatedForms = forms.map((form) =>
+      form.version === version ? { ...form, name: e.target.value } : form
+    );
+    setForms(updatedForms);
+  };
+
   const handleFieldChange = (index, value) => {
     const updatedForm = { ...currentForm };
     updatedForm.fields[index].value = value;
@@ -41,6 +50,23 @@ const App = () => {
     const updatedForm = { ...currentForm, fields: updatedFields };
     setCurrentForm(updatedForm);
     updateFormInState(updatedForm);
+  };
+
+  const deleteVersion = () => {
+    if (forms.length <= 1) {
+      alert("Cannot delete the last remaining version.");
+      return;
+    }
+
+    const updatedForms = forms.filter(
+      (form) => form.version !== currentVersion
+    );
+    setForms(updatedForms);
+
+    // Optionally, select the first version after deletion
+    const nextCurrentForm = updatedForms[0];
+    setCurrentVersion(nextCurrentForm.version);
+    setCurrentForm(nextCurrentForm);
   };
 
   const addMessageField = () => {
@@ -57,25 +83,51 @@ const App = () => {
   };
 
   const createNewVersion = () => {
+    // Calculate the new version number as a whole number
+    const newVersionNumber = Math.floor(highestVersion) + 1;
+
+    // Update the highest version number if necessary
+    setHighestVersion(Math.max(newVersionNumber, highestVersion));
+
     const newVersion = {
-      version: Math.floor(currentVersion) + 1,
+      version: newVersionNumber,
+      name: `Version ${newVersionNumber}`, // Default name for the new version
       fields: [
         { label: "SYSTEM", value: "" },
         { label: "USER", value: "" },
       ],
     };
+
     setForms([...forms, newVersion]);
-    setCurrentVersion(newVersion.version);
+    setCurrentVersion(newVersionNumber);
     setCurrentForm(newVersion);
   };
 
   const duplicateVersion = () => {
+    // Calculate the new version number and round it to one decimal place
+    let newVersionNumber = parseFloat((highestVersion + 0.1).toFixed(1));
+
+    // Ensure the new version number is greater than the highest version number
+    if (newVersionNumber <= highestVersion) {
+      newVersionNumber = parseFloat((highestVersion + 0.1).toFixed(1));
+    }
+
+    // Update the highest version number
+    setHighestVersion(newVersionNumber);
+
+    // Deep copy the fields
+    const duplicatedFields = currentForm.fields.map((field) => ({ ...field }));
+
+    // Create a new version
     const newVersion = {
-      version: currentVersion + 0.1,
-      fields: [...currentForm.fields],
+      version: newVersionNumber,
+      name: `Version ${newVersionNumber}`, // Default name for the new version
+      fields: duplicatedFields,
     };
+
+    // Add the new version to the forms array and update the state
     setForms([...forms, newVersion]);
-    setCurrentVersion(newVersion.version);
+    setCurrentVersion(newVersionNumber);
     setCurrentForm(newVersion);
   };
 
@@ -110,11 +162,14 @@ const App = () => {
         {/* This empty column aligns with the label column */}
         <div className="col-md-10">
           <div className="mb-2">
-            <button className="btn btn-primary px-4" onClick={createNewVersion}>
+            <button
+              className="btn btn-primary px-4 mb-3"
+              onClick={createNewVersion}
+            >
               New
             </button>
           </div>
-          <div className="row mt-2">
+          <div className="row mt-2 mb-1">
             <div className="col-md-3">
               <select
                 className="form-select"
@@ -123,15 +178,36 @@ const App = () => {
               >
                 {forms.map((form) => (
                   <option key={form.version} value={form.version}>
-                    Version {form.version}
+                    {form.name} (Version {form.version}){" "}
+                    {/* Display the version name */}
                   </option>
                 ))}
               </select>
             </div>
             <div className="col-md-4 d-flex align-items-center">
+              <button
+                className="btn btn-danger px-4 me-4"
+                onClick={deleteVersion}
+              >
+                Delete Version
+              </button>
               <button className="btn btn-info px-4" onClick={duplicateVersion}>
                 Duplicate
               </button>
+            </div>
+            <div className="row mb-3">
+              <div className="col-md-3">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter version name"
+                  value={
+                    forms.find((form) => form.version === currentVersion)
+                      ?.name || ""
+                  }
+                  onChange={(e) => handleVersionNameChange(e, currentVersion)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -155,12 +231,14 @@ const App = () => {
               />
             </div>
             <div className="col-md-1">
-              <button
-                className="btn btn-danger"
-                onClick={() => handleDeleteField(index)}
-              >
-                Delete
-              </button>
+              {field.label !== "SYSTEM" && (
+                <button
+                  className="btn btn-danger"
+                  onClick={() => handleDeleteField(index)}
+                >
+                  Delete
+                </button>
+              )}
             </div>
           </div>
         ))}
