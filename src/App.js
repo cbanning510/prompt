@@ -8,14 +8,16 @@ const App = () => {
       version: 1.0,
       name: "Version 1", // Add a name field
       fields: [
-        { label: "SYSTEM", value: "" },
-        { label: "USER", value: "" },
+        { role: "system", content: "" },
+        { role: "user", content: "" },
       ],
     },
   ]);
   const [currentVersion, setCurrentVersion] = useState(1.0);
   const [currentForm, setCurrentForm] = useState(forms[0]);
   const [highestVersion, setHighestVersion] = useState(1.0);
+
+  console.log("\n\nforms", forms);
 
   const textAreaRef = useRef([]);
 
@@ -40,7 +42,7 @@ const App = () => {
 
   const handleFieldChange = (index, value) => {
     const updatedForm = { ...currentForm };
-    updatedForm.fields[index].value = value;
+    updatedForm.fields[index].content = value;
     setCurrentForm(updatedForm);
     adjustHeight(index);
   };
@@ -71,12 +73,12 @@ const App = () => {
 
   const addMessageField = () => {
     const lastFieldType =
-      currentForm.fields[currentForm.fields.length - 1].label;
-    const newFieldType = lastFieldType === "USER" ? "ASSISTANT" : "USER";
+      currentForm.fields[currentForm.fields.length - 1].role;
+    const newFieldType = lastFieldType === "user" ? "assistant" : "user";
 
     const updatedForm = {
       ...currentForm,
-      fields: [...currentForm.fields, { label: newFieldType, value: "" }],
+      fields: [...currentForm.fields, { role: newFieldType, content: "" }],
     };
     setCurrentForm(updatedForm);
     updateFormInState(updatedForm);
@@ -93,8 +95,8 @@ const App = () => {
       version: newVersionNumber,
       name: `Version ${newVersionNumber}`, // Default name for the new version
       fields: [
-        { label: "SYSTEM", value: "" },
-        { label: "USER", value: "" },
+        { role: "system", content: "" },
+        { role: "user", content: "" },
       ],
     };
 
@@ -139,7 +141,7 @@ const App = () => {
     const response = "Simulated ChatGPT Response";
     const updatedForm = {
       ...currentForm,
-      fields: [...currentForm.fields, { label: "ASSISTANT", value: response }],
+      fields: [...currentForm.fields, { role: "assistant", content: response }],
     };
     setCurrentForm(updatedForm);
     updateFormInState(updatedForm);
@@ -225,20 +227,20 @@ const App = () => {
           <div key={index} className="row mb-3 align-items-center">
             <div className="col-md-1">
               <label className="form-label wrapped-label fw-bold">
-                {field.label}
+                {field.role}
               </label>
             </div>
             <div className="col-md-9">
               <textarea
                 ref={(el) => (textAreaRef.current[index] = el)}
                 className="form-control"
-                value={field.value}
+                value={field.content}
                 onChange={(e) => handleFieldChange(index, e.target.value)}
                 style={{ overflowY: "hidden" }}
               />
             </div>
             <div className="col-md-1">
-              {field.label !== "SYSTEM" && (
+              {field.role !== "system" && (
                 <button
                   className="btn btn-danger"
                   onClick={() => handleDeleteField(index)}
@@ -267,8 +269,8 @@ const App = () => {
               onClick={handleSubmit}
               disabled={
                 currentForm.fields.length === 0 ||
-                currentForm.fields[currentForm.fields.length - 1].label !==
-                  "USER"
+                currentForm.fields[currentForm.fields.length - 1].role !==
+                  "user"
               }
             >
               Submit
