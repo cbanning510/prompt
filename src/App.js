@@ -17,8 +17,6 @@ const App = () => {
   const [currentForm, setCurrentForm] = useState(forms[0]);
   const [highestVersion, setHighestVersion] = useState(1.0);
 
-  console.log("\n\nforms", forms);
-
   const textAreaRef = useRef([]);
 
   const adjustHeight = (index) => {
@@ -28,14 +26,25 @@ const App = () => {
       textArea.style.height = textArea.scrollHeight + "px";
     }
   };
-
-  useEffect(() => {
-    currentForm.fields.forEach((_, index) => adjustHeight(index));
-  }, [currentForm.fields]);
+  console.log("forms", forms);
+  // useEffect(() => {
+  //   currentForm.fields.forEach((_, index) => adjustHeight(index));
+  // }, [currentForm.fields]);
 
   const handleVersionNameChange = (e, version) => {
+    const newName = e.target.value;
+
+    // Update the current form's name if it's the one being edited
+    if (currentVersion === version) {
+      setCurrentForm((prevForm) => ({
+        ...prevForm,
+        name: newName,
+      }));
+    }
+
+    // Update the forms array with the new name
     const updatedForms = forms.map((form) =>
-      form.version === version ? { ...form, name: e.target.value } : form
+      form.version === version ? { ...form, name: newName } : form
     );
     setForms(updatedForms);
   };
@@ -45,13 +54,23 @@ const App = () => {
     updatedForm.fields[index].content = value;
     setCurrentForm(updatedForm);
     adjustHeight(index);
+    updateFormInState(updatedForm);
   };
 
-  const handleDeleteField = (index) => {
+  const handleDeleteField = (e, index) => {
+    e.preventDefault();
+    // Update the current form fields
     const updatedFields = currentForm.fields.filter((_, idx) => idx !== index);
-    const updatedForm = { ...currentForm, fields: updatedFields };
-    setCurrentForm(updatedForm);
-    updateFormInState(updatedForm);
+    const updatedCurrentForm = { ...currentForm, fields: updatedFields };
+
+    // Update the current form in the state
+    setCurrentForm(updatedCurrentForm);
+
+    // Also update the forms array to reflect this change
+    const updatedForms = forms.map((form) =>
+      form.version === currentVersion ? updatedCurrentForm : form
+    );
+    setForms(updatedForms);
   };
 
   const deleteVersion = () => {
@@ -121,7 +140,7 @@ const App = () => {
     const duplicatedFields = currentForm.fields.map((field) => ({ ...field }));
 
     // Determine the name for the new version
-    const newVersionName = `Version ${newVersionNumber} (copy of Version ${currentVersion})`;
+    const newVersionName = `Version ${newVersionNumber} (copy of ${currentForm.name})`;
 
     // Create a new version with the determined name
     const newVersion = {
@@ -175,7 +194,7 @@ const App = () => {
             </button>
           </div>
           <div className="row mt-2 mb-1">
-            <div className="col-md-3">
+            <div className="col-md-4">
               <select
                 className="form-select"
                 onChange={(e) => handleVersionChange(e.target.value)}
