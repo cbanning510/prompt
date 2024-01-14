@@ -262,7 +262,8 @@ const App = () => {
               {field.role !== "system" && (
                 <button
                   className="btn btn-danger"
-                  onClick={() => handleDeleteField(index)}
+                  type="button"
+                  onClick={(e) => handleDeleteField(e, index)}
                 >
                   Delete
                 </button>
