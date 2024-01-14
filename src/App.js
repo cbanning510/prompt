@@ -1,25 +1,44 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
+const BASE_URL = "http://localhost:3000/versions";
+
 const App = () => {
-  const [forms, setForms] = useState([
-    {
-      version: 1.0,
-      name: "Version 1", // Add a name field
-      fields: [
-        { role: "system", content: "" },
-        { role: "user", content: "" },
-      ],
-    },
-  ]);
-  const [currentVersion, setCurrentVersion] = useState(1.0);
-  const [currentForm, setCurrentForm] = useState(forms[0]);
+  const [forms, setForms] = useState([]);
+  const [currentVersion, setCurrentVersion] = useState(null);
+  const [currentForm, setCurrentForm] = useState(null);
   const [highestVersion, setHighestVersion] = useState(1.0);
-
-  console.log("\n\nforms", forms);
-
   const textAreaRef = useRef([]);
+
+  useEffect(() => {
+    axios
+      .get(BASE_URL)
+      .then((response) => {
+        const versions = response.data;
+        console.log("Fetched versions:", versions);
+        setForms(versions);
+        if (versions.length > 0) {
+          const latestVersion = Math.max(...versions.map((v) => v.version));
+          setCurrentVersion(latestVersion);
+          const selectedForm = versions.find(
+            (v) => v.version === latestVersion
+          );
+          if (selectedForm && selectedForm.fields) {
+            // Sort fields by id
+            const sortedFields = [...selectedForm.fields].sort(
+              (a, b) => a.id - b.id
+            );
+            setCurrentForm({ ...selectedForm, fields: sortedFields });
+          } else {
+            setCurrentForm(selectedForm);
+          }
+          setHighestVersion(latestVersion);
+        }
+      })
+      .catch((error) => console.error("Error fetching versions:", error));
+  }, []);
 
   const adjustHeight = (index) => {
     const textArea = textAreaRef.current[index];
@@ -30,121 +49,78 @@ const App = () => {
   };
 
   useEffect(() => {
-    currentForm.fields.forEach((_, index) => adjustHeight(index));
-  }, [currentForm.fields]);
+    if (currentForm && currentForm.fields) {
+      currentForm.fields.forEach((_, index) => adjustHeight(index));
+    }
+  }, [currentForm]);
 
-  const handleVersionNameChange = (e, version) => {
+  const handleVersionChange = (versionValue) => {
+    console.log("Version changed:", versionValue);
+    const version = parseFloat(versionValue);
+    const selectedForm = forms.find((form) => form.version === version);
+
+    if (selectedForm && selectedForm.fields) {
+      // Sort fields by id
+      const sortedFields = [...selectedForm.fields].sort((a, b) => a.id - b.id);
+      setCurrentForm({ ...selectedForm, fields: sortedFields });
+    } else {
+      setCurrentForm(selectedForm);
+    }
+
+    setCurrentVersion(version);
+  };
+
+  // this is working great!!!!!!!!!!!!!!!!
+
+  const handleVersionNameChange = async (e, version) => {
+    console.log("Version name changed:", e.target.value, version);
     const updatedForms = forms.map((form) =>
       form.version === version ? { ...form, name: e.target.value } : form
     );
     setForms(updatedForms);
+
+    // Find the form that was updated
+    const updatedForm = updatedForms.find((form) => form.version === version);
+
+    // Update the backend with the new version name
+    try {
+      await axios.put(`${BASE_URL}/${updatedForm.id}`, updatedForm);
+      console.log("Version name updated in backend");
+    } catch (error) {
+      console.error("Error updating version name:", error);
+    }
   };
 
-  const handleFieldChange = (index, value) => {
+  const handleFieldChange = async (index, value) => {
     const updatedForm = { ...currentForm };
     updatedForm.fields[index].content = value;
     setCurrentForm(updatedForm);
     adjustHeight(index);
+
+    // Update the backend with the new field value
+    try {
+      await axios.put(`${BASE_URL}/${currentForm.id}`, updatedForm);
+      updateFormInState(updatedForm);
+      console.log("Field updated");
+    } catch (error) {
+      console.error("Error updating field:", error);
+    }
   };
 
-  const handleDeleteField = (index) => {
+  const handleDeleteField = async (index) => {
+    // Remove the field from the current form
     const updatedFields = currentForm.fields.filter((_, idx) => idx !== index);
     const updatedForm = { ...currentForm, fields: updatedFields };
     setCurrentForm(updatedForm);
-    updateFormInState(updatedForm);
-  };
 
-  const deleteVersion = () => {
-    if (forms.length <= 1) {
-      alert("Cannot delete the last remaining version.");
-      return;
+    // Send the updated form to the backend
+    try {
+      await axios.put(`${BASE_URL}/${currentForm.id}`, updatedForm);
+      updateFormInState(updatedForm);
+      console.log("Field deleted");
+    } catch (error) {
+      console.error("Error deleting field:", error);
     }
-
-    const updatedForms = forms.filter(
-      (form) => form.version !== currentVersion
-    );
-    setForms(updatedForms);
-
-    // Optionally, select the first version after deletion
-    const nextCurrentForm = updatedForms[0];
-    setCurrentVersion(nextCurrentForm.version);
-    setCurrentForm(nextCurrentForm);
-  };
-
-  const addMessageField = () => {
-    const lastFieldType =
-      currentForm.fields[currentForm.fields.length - 1].role;
-    const newFieldType = lastFieldType === "user" ? "assistant" : "user";
-
-    const updatedForm = {
-      ...currentForm,
-      fields: [...currentForm.fields, { role: newFieldType, content: "" }],
-    };
-    setCurrentForm(updatedForm);
-    updateFormInState(updatedForm);
-  };
-
-  const createNewVersion = () => {
-    // Calculate the new version number as a whole number
-    const newVersionNumber = Math.floor(highestVersion) + 1;
-
-    // Update the highest version number if necessary
-    setHighestVersion(Math.max(newVersionNumber, highestVersion));
-
-    const newVersion = {
-      version: newVersionNumber,
-      name: `Version ${newVersionNumber}`, // Default name for the new version
-      fields: [
-        { role: "system", content: "" },
-        { role: "user", content: "" },
-      ],
-    };
-
-    setForms([...forms, newVersion]);
-    setCurrentVersion(newVersionNumber);
-    setCurrentForm(newVersion);
-  };
-
-  const duplicateVersion = () => {
-    // Calculate the new version number and round it to one decimal place
-    let newVersionNumber = parseFloat((highestVersion + 0.1).toFixed(1));
-
-    // Ensure the new version number is greater than the highest version number
-    if (newVersionNumber <= highestVersion) {
-      newVersionNumber = parseFloat((highestVersion + 0.1).toFixed(1));
-    }
-
-    // Update the highest version number
-    setHighestVersion(newVersionNumber);
-
-    // Deep copy the fields
-    const duplicatedFields = currentForm.fields.map((field) => ({ ...field }));
-
-    // Determine the name for the new version
-    const newVersionName = `Version ${newVersionNumber} (copy of Version ${currentVersion})`;
-
-    // Create a new version with the determined name
-    const newVersion = {
-      version: newVersionNumber,
-      name: newVersionName,
-      fields: duplicatedFields,
-    };
-
-    // Add the new version to the forms array and update the state
-    setForms([...forms, newVersion]);
-    setCurrentVersion(newVersionNumber);
-    setCurrentForm(newVersion);
-  };
-
-  const handleSubmit = async () => {
-    // Simulate sending data to ChatGPT and getting a response
-    const response = "Simulated ChatGPT Response";
-    const updatedForm = {
-      ...currentForm,
-      fields: [...currentForm.fields, { role: "assistant", content: response }],
-    };
-    setCurrentForm(updatedForm);
-    updateFormInState(updatedForm);
   };
 
   const updateFormInState = (updatedForm) => {
@@ -154,10 +130,150 @@ const App = () => {
     setForms(updatedForms);
   };
 
-  const handleVersionChange = (version) => {
-    const selectedForm = forms.find((f) => f.version === parseFloat(version));
-    setCurrentVersion(parseFloat(version));
-    setCurrentForm(selectedForm);
+  const createNewVersion = async () => {
+    const newVersionNumber = Math.floor(highestVersion) + 1;
+    setHighestVersion(newVersionNumber);
+
+    const newVersion = {
+      version: newVersionNumber,
+      name: `Version ${newVersionNumber}`,
+      fields: [
+        { role: "system", content: "" },
+        { role: "user", content: "" },
+      ],
+    };
+
+    try {
+      const response = await axios.post(BASE_URL, newVersion);
+      console.log("Created new version:", response.data);
+      setForms([...forms, response.data]);
+      setCurrentVersion(newVersionNumber);
+      setCurrentForm(response.data);
+    } catch (error) {
+      console.error("Error creating new version:", error);
+    }
+  };
+  // working great!!!!!!!!
+  const deleteVersion = async () => {
+    if (forms.length <= 1) {
+      alert("Cannot delete the last remaining version.");
+      return;
+    }
+
+    try {
+      await axios.delete(`${BASE_URL}/${currentForm.id}`);
+      const updatedForms = forms.filter(
+        (form) => form.version !== currentVersion
+      );
+      setForms(updatedForms);
+
+      if (updatedForms.length > 0) {
+        setCurrentVersion(updatedForms[0].version);
+        setCurrentForm(updatedForms[0]);
+      } else {
+        setCurrentVersion(null);
+        setCurrentForm(null);
+      }
+    } catch (error) {
+      console.error("Error deleting version:", error);
+    }
+  };
+
+  const duplicateVersion = async () => {
+    try {
+      const response = await axios.post(
+        `${BASE_URL}/duplicate/${currentForm.id}`
+      );
+      const duplicatedVersion = response.data;
+
+      // Assign a new version number
+      const newVersionNumber = Math.floor(highestVersion) + 1;
+      duplicatedVersion.version = newVersionNumber;
+      setHighestVersion(newVersionNumber);
+
+      // Update state with the new duplicated version
+      const newForms = [...forms, duplicatedVersion];
+      setForms(newForms);
+      setCurrentVersion(newVersionNumber);
+      setCurrentForm(duplicatedVersion);
+    } catch (error) {
+      console.error("Error duplicating version:", error);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!currentForm?.fields) {
+      console.error("Current form or fields is undefined.");
+      return;
+    }
+
+    const responseContent = "Simulated ChatGPT Response";
+    const updatedFields = [
+      ...currentForm.fields,
+      { role: "assistant", content: responseContent },
+    ];
+
+    const updatedForm = {
+      ...currentForm,
+      fields: updatedFields,
+      // Ensure the name is also sent
+      name: currentForm.name,
+    };
+
+    try {
+      const response = await axios.put(
+        `${BASE_URL}/${currentForm.id}`,
+        updatedForm
+      );
+      const updatedFormFromResponse = response.data;
+
+      // Update the current form and forms array with the updated data
+      setCurrentForm(updatedFormFromResponse);
+      updateFormInState(updatedFormFromResponse);
+      console.log("Form updated in backend");
+    } catch (error) {
+      console.error("Error updating form:", error);
+    }
+  };
+
+  const addMessageField = async () => {
+    if (!currentForm || !currentForm.fields) {
+      console.error("Current form or fields is undefined.");
+      return;
+    }
+
+    // Determine the role for the new field based on the last field's role
+    const lastFieldType =
+      currentForm.fields[currentForm.fields.length - 1]?.role || "user";
+    console.log("lastFieldType", lastFieldType);
+    const newFieldType = lastFieldType === "user" ? "assistant" : "user";
+    console.log("newFieldType", newFieldType);
+
+    // Append the new field to the current form's fields
+    const updatedFields = [
+      ...currentForm.fields,
+      { role: newFieldType, content: "" },
+    ];
+    console.log("updatedFields", updatedFields);
+    const updatedForm = { ...currentForm, fields: updatedFields };
+    console.log("updatedForm", updatedForm);
+
+    // Update the backend and then the local state
+    try {
+      const response = await axios.put(
+        `${BASE_URL}/${currentForm.id}`,
+        updatedForm
+      );
+      const updatedFormFromResponse = response.data;
+      console.log("updatedFormFromResponse", updatedFormFromResponse);
+
+      // Update the current form and forms array with the updated data from the backend
+      setCurrentForm(updatedFormFromResponse);
+      updateFormInState(updatedFormFromResponse);
+      console.log("Form updated in backend with new field");
+    } catch (error) {
+      console.error("Error updating form with new field:", error);
+    }
   };
 
   return (
@@ -179,12 +295,13 @@ const App = () => {
               <select
                 className="form-select"
                 onChange={(e) => handleVersionChange(e.target.value)}
-                value={currentVersion}
+                value={currentVersion || ""}
               >
                 {forms.map((form) => (
-                  <option key={form.version} value={form.version}>
+                  <option key={form.id || form.version} value={form.version}>
+                    {" "}
+                    {/* Use a unique identifier */}
                     {form.name || `Version ${form.version}`}
-                    {/* Display the version name */}
                   </option>
                 ))}
               </select>
@@ -223,7 +340,7 @@ const App = () => {
       </div>
 
       <form className="mt-4">
-        {currentForm.fields.map((field, index) => (
+        {currentForm?.fields?.map((field, index) => (
           <div key={index} className="row mb-3 align-items-center">
             <div className="col-md-1">
               <label className="form-label wrapped-label fw-bold">
@@ -267,11 +384,11 @@ const App = () => {
             <button
               className="btn btn-success me-2 px-4"
               onClick={handleSubmit}
-              disabled={
-                currentForm.fields.length === 0 ||
-                currentForm.fields[currentForm.fields.length - 1].role !==
-                  "user"
-              }
+              // disabled={
+              //   currentForm?.fields?.length === 0 ||
+              //   currentForm?.fields[currentForm?.fields?.length - 1]?.role !==
+              //     "user"
+              // }
             >
               Submit
             </button>
