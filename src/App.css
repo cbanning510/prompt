@@ -5,3 +5,14 @@
 .wrapped-label {
   white-space: pre-line;
 }
+
+.btn-wide {
+  min-width: 180px;
+}
+
+.wide-button {
+  width: 250px; /* or any other width */
+  /* white-space: nowrap; Prevents text from wrapping */
+  overflow: hidden; /* Hides overflowed text */
+  text-overflow: ellipsis; /* Adds ellipsis for overflowed text */
+}

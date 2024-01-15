@@ -336,15 +336,25 @@ const App = () => {
             </div>
             <div className="col-md-4 d-flex align-items-center">
               <button
-                className="btn btn-danger px-4 me-4"
+                className="btn btn-danger px-4 me-4 btn-wide"
                 onClick={deleteVersion}
               >
                 Delete Version
               </button>
-              <button className="btn btn-info px-4" onClick={duplicateVersion}>
+              <button
+                className="btn btn-info px-4 me-4 btn-wide"
+                onClick={duplicateVersion}
+              >
                 Duplicate
               </button>
+              <button
+                className="btn btn-warning btn-wide px-4 wide-button ms-auto"
+                // onClick={backendUpdateFunction}
+              >
+                Update Back End
+              </button>
             </div>
+
             <div className="row mb-3">
               <div className="col-md-3 mt-1">
                 <label htmlFor="versionName" className="form-label">
