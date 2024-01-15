@@ -18,26 +18,17 @@ const App = () => {
       .then((response) => {
         const versions = response.data.map((v) => ({
           ...v,
-          fields: sortFieldsById(v.fields), // Sort fields right after fetching
+          fields: sortFieldsById(v.fields),
         }));
         console.log("Fetched versions:", versions);
         setForms(versions);
         if (versions.length > 0) {
-          const latestVersion = Math.max(...versions.map((v) => v.version));
-          setCurrentVersion(latestVersion);
-          const selectedForm = versions.find(
-            (v) => v.version === latestVersion
+          const latestVersionForm = versions.reduce((prev, current) =>
+            prev.version > current.version ? prev : current
           );
-          if (selectedForm && selectedForm.fields) {
-            // Sort fields by id
-            const sortedFields = [...selectedForm.fields].sort(
-              (a, b) => a.id - b.id
-            );
-            setCurrentForm({ ...selectedForm, fields: sortedFields });
-          } else {
-            setCurrentForm(selectedForm);
-          }
-          setHighestVersion(latestVersion);
+          setCurrentForm(latestVersionForm);
+          setCurrentVersion(latestVersionForm.version);
+          setHighestVersion(Math.max(...versions.map((v) => v.version)));
         }
       })
       .catch((error) => console.error("Error fetching versions:", error));
@@ -57,20 +48,16 @@ const App = () => {
     }
   }, [currentForm]);
 
-  const handleVersionChange = (versionValue) => {
-    console.log("Version changed:", versionValue);
-    const version = parseFloat(versionValue);
-    const selectedForm = forms.find((form) => form.version === version);
+  const handleVersionChange = (selectedFormId) => {
+    console.log("Form ID changed:", selectedFormId);
+    const selectedForm = forms.find(
+      (form) => form.id.toString() === selectedFormId
+    );
 
-    if (selectedForm && selectedForm.fields) {
-      // Sort fields by id
-      const sortedFields = [...selectedForm.fields].sort((a, b) => a.id - b.id);
-      setCurrentForm({ ...selectedForm, fields: sortedFields });
-    } else {
+    if (selectedForm) {
       setCurrentForm(selectedForm);
+      setCurrentVersion(selectedForm.version);
     }
-
-    setCurrentVersion(version);
   };
 
   // this is working great!!!!!!!!!!!!!!!!
@@ -111,7 +98,7 @@ const App = () => {
     // Update the backend with the new field value
     try {
       await axios.put(`${BASE_URL}/${currentForm.id}`, updatedForm);
-      updateFormInState(updatedForm);
+      // updateFormInState(updatedForm);
       console.log("Field updated");
     } catch (error) {
       console.error("Error updating field:", error);
@@ -141,10 +128,10 @@ const App = () => {
 
   const updateFormInState = (updatedForm) => {
     console.log("Updating form in state", updatedForm);
-    const updatedForms = forms.map((f) =>
-      f.version === currentVersion
+    const updatedForms = forms.map((form) =>
+      form.id === updatedForm.id
         ? { ...updatedForm, fields: sortFieldsById(updatedForm.fields) }
-        : f
+        : form
     );
     console.log("Updated forms:", updatedForms);
 
@@ -336,10 +323,10 @@ const App = () => {
               <select
                 className="form-select"
                 onChange={(e) => handleVersionChange(e.target.value)}
-                value={currentVersion || ""}
+                value={currentForm ? currentForm.id : ""}
               >
                 {forms.map((form) => (
-                  <option key={form.id || form.version} value={form.version}>
+                  <option key={form.id} value={form.id}>
                     {`ID: ${form.id} - ${
                       form.name || `Version ${form.version}`
                     }`}
