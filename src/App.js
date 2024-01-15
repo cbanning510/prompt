@@ -225,39 +225,92 @@ const App = () => {
       return;
     }
 
-    const responseContent = "Simulated ChatGPT Response";
-    const updatedFields = [
-      ...currentForm.fields,
-      { role: "assistant", content: responseContent },
-    ];
-
-    const updatedForm = {
-      ...currentForm,
-      fields: updatedFields,
-      // Ensure the name is also sent
-      name: currentForm.name,
-    };
+    // Assuming the user message is the last field in the current form.
+    const userMessage =
+      currentForm.fields[currentForm.fields.length - 1].content;
 
     try {
-      const response = await axios.put(
-        `${BASE_URL}/${currentForm.id}`,
-        updatedForm
-      );
-      let updatedFormFromResponse = response.data;
+      const response = await fetch("http://192.168.1.151:3000/openai/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userInput: userMessage,
+          // lat: presentLocation?.latitude,
+          // long: presentLocation?.longitude,
+          dateTime: new Date().toISOString(),
+          model: "gpt-4",
+          // Include other relevant data if necessary
+        }),
+      });
 
-      // Sort the fields by ID before updating the state
-      updatedFormFromResponse.fields = sortFieldsById(
-        updatedFormFromResponse.fields
-      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
 
-      console.log("Updated form from response:", updatedFormFromResponse);
+      const data = await response.json();
+      const botResponse = data.response; // Adjust this according to your API response structure
 
-      // Update the current form and forms array with the sorted data from the backend
-      setCurrentForm(updatedFormFromResponse);
-      updateFormInState(updatedFormFromResponse);
-      console.log("Form updated in backend");
+      const updatedFields = [
+        ...currentForm.fields,
+        { role: "assistant", content: botResponse },
+      ];
+
+      const updatedForm = {
+        ...currentForm,
+        fields: updatedFields,
+        name: currentForm.name,
+      };
+
+      // Update the backend with the new field value
+      try {
+        const backendResponse = await axios.put(
+          `${BASE_URL}/${currentForm.id}`,
+          updatedForm
+        );
+        let updatedFormFromBackend = backendResponse.data;
+
+        // Sort the fields by ID before updating the state
+        updatedFormFromBackend.fields = sortFieldsById(
+          updatedFormFromBackend.fields
+        );
+
+        console.log("Updated form from response:", updatedFormFromBackend);
+
+        // Update the current form and forms array with the sorted data from the backend
+        setCurrentForm(updatedFormFromBackend);
+        updateFormInState(updatedFormFromBackend);
+      } catch (backendError) {
+        console.error("Error updating form in backend:", backendError);
+      }
     } catch (error) {
-      console.error("Error updating form:", error);
+      console.error("Error while submitting:", error);
+    }
+  };
+
+  const backendUpdateFunction = async () => {
+    try {
+      // Create an array of objects with role and content for each field
+      const updatedContent = currentForm.fields.map((field) => ({
+        role: field.role,
+        content: field.content,
+      }));
+
+      const response = await axios.post(
+        "http://192.168.1.151:3000/openai/update-content",
+        {
+          newContent: updatedContent,
+        }
+      );
+
+      if (response.status === 200) {
+        console.log("Backend content updated successfully");
+      } else {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Error updating backend content:", error);
     }
   };
 
@@ -349,7 +402,7 @@ const App = () => {
               </button>
               <button
                 className="btn btn-warning btn-wide px-4 wide-button ms-auto"
-                // onClick={backendUpdateFunction}
+                onClick={backendUpdateFunction}
               >
                 Update Back End
               </button>
