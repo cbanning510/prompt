@@ -16,7 +16,10 @@ const App = () => {
     axios
       .get(BASE_URL)
       .then((response) => {
-        const versions = response.data;
+        const versions = response.data.map((v) => ({
+          ...v,
+          fields: sortFieldsById(v.fields), // Sort fields right after fetching
+        }));
         console.log("Fetched versions:", versions);
         setForms(versions);
         if (versions.length > 0) {
@@ -91,6 +94,14 @@ const App = () => {
     }
   };
 
+  const sortFieldsById = (fields) => {
+    // Check if fields is an array and has elements
+    if (Array.isArray(fields) && fields.length) {
+      return [...fields].sort((a, b) => a.id - b.id);
+    }
+    return []; // Return an empty array if fields is not an iterable array
+  };
+
   const handleFieldChange = async (index, value) => {
     const updatedForm = { ...currentForm };
     updatedForm.fields[index].content = value;
@@ -107,7 +118,8 @@ const App = () => {
     }
   };
 
-  const handleDeleteField = async (index) => {
+  const handleDeleteField = async (e, index) => {
+    e.preventDefault();
     // Remove the field from the current form
     const updatedFields = currentForm.fields.filter((_, idx) => idx !== index);
     const updatedForm = { ...currentForm, fields: updatedFields };
@@ -123,10 +135,19 @@ const App = () => {
     }
   };
 
+  const sortFormsByVersion = (versions) => {
+    return versions.sort((a, b) => b.version - a.version);
+  };
+
   const updateFormInState = (updatedForm) => {
+    console.log("Updating form in state", updatedForm);
     const updatedForms = forms.map((f) =>
-      f.version === currentVersion ? updatedForm : f
+      f.version === currentVersion
+        ? { ...updatedForm, fields: sortFieldsById(updatedForm.fields) }
+        : f
     );
+    console.log("Updated forms:", updatedForms);
+
     setForms(updatedForms);
   };
 
@@ -145,31 +166,43 @@ const App = () => {
 
     try {
       const response = await axios.post(BASE_URL, newVersion);
-      console.log("Created new version:", response.data);
-      setForms([...forms, response.data]);
+      const sortedForms = sortFormsByVersion([...forms, response.data]);
+      setForms(sortedForms);
       setCurrentVersion(newVersionNumber);
       setCurrentForm(response.data);
     } catch (error) {
       console.error("Error creating new version:", error);
     }
   };
-  // working great!!!!!!!!
+
   const deleteVersion = async () => {
     if (forms.length <= 1) {
       alert("Cannot delete the last remaining version.");
       return;
     }
 
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this version?"
+    );
+    if (!confirmDelete) {
+      console.log("Version deletion cancelled.");
+      return; // Exit the function if the user cancels
+    }
+
     try {
       await axios.delete(`${BASE_URL}/${currentForm.id}`);
-      const updatedForms = forms.filter(
-        (form) => form.version !== currentVersion
-      );
-      setForms(updatedForms);
+      const response = await axios.get(BASE_URL);
+      const updatedVersions = response.data.map((v) => ({
+        ...v,
+        fields: sortFieldsById(v.fields),
+      }));
 
-      if (updatedForms.length > 0) {
-        setCurrentVersion(updatedForms[0].version);
-        setCurrentForm(updatedForms[0]);
+      const sortedForms = sortFormsByVersion(updatedVersions);
+      setForms(sortedForms);
+
+      if (sortedForms.length > 0) {
+        setCurrentVersion(sortedForms[0].version);
+        setCurrentForm(sortedForms[0]);
       } else {
         setCurrentVersion(null);
         setCurrentForm(null);
@@ -186,16 +219,14 @@ const App = () => {
       );
       const duplicatedVersion = response.data;
 
-      // Assign a new version number
-      const newVersionNumber = Math.floor(highestVersion) + 1;
-      duplicatedVersion.version = newVersionNumber;
-      setHighestVersion(newVersionNumber);
-
-      // Update state with the new duplicated version
-      const newForms = [...forms, duplicatedVersion];
-      setForms(newForms);
-      setCurrentVersion(newVersionNumber);
-      setCurrentForm(duplicatedVersion);
+      if (duplicatedVersion && duplicatedVersion.fields) {
+        const sortedForms = sortFormsByVersion([...forms, duplicatedVersion]);
+        setForms(sortedForms);
+        setCurrentVersion(duplicatedVersion.version);
+        setCurrentForm(duplicatedVersion);
+      } else {
+        console.error("Duplicated version data is invalid or missing fields");
+      }
     } catch (error) {
       console.error("Error duplicating version:", error);
     }
@@ -225,9 +256,16 @@ const App = () => {
         `${BASE_URL}/${currentForm.id}`,
         updatedForm
       );
-      const updatedFormFromResponse = response.data;
+      let updatedFormFromResponse = response.data;
 
-      // Update the current form and forms array with the updated data
+      // Sort the fields by ID before updating the state
+      updatedFormFromResponse.fields = sortFieldsById(
+        updatedFormFromResponse.fields
+      );
+
+      console.log("Updated form from response:", updatedFormFromResponse);
+
+      // Update the current form and forms array with the sorted data from the backend
       setCurrentForm(updatedFormFromResponse);
       updateFormInState(updatedFormFromResponse);
       console.log("Form updated in backend");
@@ -245,18 +283,15 @@ const App = () => {
     // Determine the role for the new field based on the last field's role
     const lastFieldType =
       currentForm.fields[currentForm.fields.length - 1]?.role || "user";
-    console.log("lastFieldType", lastFieldType);
     const newFieldType = lastFieldType === "user" ? "assistant" : "user";
-    console.log("newFieldType", newFieldType);
 
     // Append the new field to the current form's fields
     const updatedFields = [
       ...currentForm.fields,
       { role: newFieldType, content: "" },
     ];
-    console.log("updatedFields", updatedFields);
+
     const updatedForm = { ...currentForm, fields: updatedFields };
-    console.log("updatedForm", updatedForm);
 
     // Update the backend and then the local state
     try {
@@ -264,10 +299,16 @@ const App = () => {
         `${BASE_URL}/${currentForm.id}`,
         updatedForm
       );
-      const updatedFormFromResponse = response.data;
-      console.log("updatedFormFromResponse", updatedFormFromResponse);
+      let updatedFormFromResponse = response.data;
 
-      // Update the current form and forms array with the updated data from the backend
+      // Sort the fields by ID before updating the state
+      updatedFormFromResponse.fields = sortFieldsById(
+        updatedFormFromResponse.fields
+      );
+
+      console.log("Updated form from response:", updatedFormFromResponse);
+
+      // Update the current form and forms array with the sorted data from the backend
       setCurrentForm(updatedFormFromResponse);
       updateFormInState(updatedFormFromResponse);
       console.log("Form updated in backend with new field");
@@ -291,7 +332,7 @@ const App = () => {
             </button>
           </div>
           <div className="row mt-2 mb-1">
-            <div className="col-md-3">
+            <div className="col-md-4">
               <select
                 className="form-select"
                 onChange={(e) => handleVersionChange(e.target.value)}
@@ -299,9 +340,9 @@ const App = () => {
               >
                 {forms.map((form) => (
                   <option key={form.id || form.version} value={form.version}>
-                    {" "}
-                    {/* Use a unique identifier */}
-                    {form.name || `Version ${form.version}`}
+                    {`ID: ${form.id} - ${
+                      form.name || `Version ${form.version}`
+                    }`}
                   </option>
                 ))}
               </select>
@@ -360,7 +401,7 @@ const App = () => {
               {field.role !== "system" && (
                 <button
                   className="btn btn-danger"
-                  onClick={() => handleDeleteField(index)}
+                  onClick={(e) => handleDeleteField(e, index)}
                 >
                   Delete
                 </button>
@@ -384,11 +425,11 @@ const App = () => {
             <button
               className="btn btn-success me-2 px-4"
               onClick={handleSubmit}
-              // disabled={
-              //   currentForm?.fields?.length === 0 ||
-              //   currentForm?.fields[currentForm?.fields?.length - 1]?.role !==
-              //     "user"
-              // }
+              disabled={
+                currentForm?.fields?.length === 0 ||
+                currentForm?.fields[currentForm?.fields?.length - 1]?.role !==
+                  "user"
+              }
             >
               Submit
             </button>
