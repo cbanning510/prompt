@@ -1,5 +1,4 @@
 {
-  "homepage": "http://cbanning510.github.io/prompt",
   "name": "prompt",
   "version": "0.1.0",
   "private": true,
@@ -23,7 +22,7 @@
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build"
   },
-  "eslintConfig": {   
+  "eslintConfig": {
     "extends": [
       "react-app",
       "react-app/jest"
