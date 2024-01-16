@@ -3,8 +3,8 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
-const BASE_URL = "http://localhost:3000/versions";
-// const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
+// const BASE_URL = "http://localhost:3000/versions";
+const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
 
 const App = () => {
   const [forms, setForms] = useState([]);
@@ -236,23 +236,24 @@ const App = () => {
       currentForm.fields[currentForm.fields.length - 1].content;
 
     try {
-      const response = await fetch("http://192.168.1.151:3000/openai/message", {
-        // const response = await fetch(
-        //   "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
-        // {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userInput: userMessage,
-          // lat: presentLocation?.latitude,
-          // long: presentLocation?.longitude,
-          dateTime: new Date().toISOString(),
-          model: "gpt-4",
-          // Include other relevant data if necessary
-        }),
-      });
+      // const response = await fetch("http://192.168.1.151:3000/openai/message", {
+      const response = await fetch(
+        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userInput: userMessage,
+            // lat: presentLocation?.latitude,
+            // long: presentLocation?.longitude,
+            dateTime: new Date().toISOString(),
+            model: "gpt-4",
+            // Include other relevant data if necessary
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -309,8 +310,8 @@ const App = () => {
       }));
 
       const response = await axios.post(
-        "http://192.168.1.151:3000/openai/update-content",
-        // "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
+        // "http://192.168.1.151:3000/openai/update-content",
+        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
         {
           newContent: updatedContent,
         }
