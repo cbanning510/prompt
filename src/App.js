@@ -61,7 +61,7 @@ const App = () => {
       setCurrentForm(selectedForm);
       setCurrentVersion(selectedForm.version);
     }
-    backendUpdateFunction();
+    // backendUpdateFunction();
   };
 
   // this is working great!!!!!!!!!!!!!!!!
