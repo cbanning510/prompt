@@ -3,15 +3,15 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
-// const BASE_URL = "http://localhost:3000/versions";
-const BASE_URL =
-  "https://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
+const BASE_URL = "http://localhost:3000/versions";
+// const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
 
 const App = () => {
   const [forms, setForms] = useState([]);
   const [currentVersion, setCurrentVersion] = useState(null);
   const [currentForm, setCurrentForm] = useState(null);
   const [highestVersion, setHighestVersion] = useState(1.0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const textAreaRef = useRef([]);
 
   useEffect(() => {
@@ -51,6 +51,7 @@ const App = () => {
   }, [currentForm]);
 
   const handleVersionChange = (selectedFormId) => {
+    // update backend with current form
     console.log("Form ID changed:", selectedFormId);
     const selectedForm = forms.find(
       (form) => form.id.toString() === selectedFormId
@@ -60,6 +61,7 @@ const App = () => {
       setCurrentForm(selectedForm);
       setCurrentVersion(selectedForm.version);
     }
+    backendUpdateFunction();
   };
 
   // this is working great!!!!!!!!!!!!!!!!
@@ -227,29 +229,30 @@ const App = () => {
       return;
     }
 
+    setIsSubmitting(true);
+
     // Assuming the user message is the last field in the current form.
     const userMessage =
       currentForm.fields[currentForm.fields.length - 1].content;
 
     try {
-      // const response = await fetch("http://192.168.1.151:3000/openai/message", {
-      const response = await fetch(
-        "https://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userInput: userMessage,
-            // lat: presentLocation?.latitude,
-            // long: presentLocation?.longitude,
-            dateTime: new Date().toISOString(),
-            model: "gpt-4",
-            // Include other relevant data if necessary
-          }),
-        }
-      );
+      const response = await fetch("http://192.168.1.151:3000/openai/message", {
+        // const response = await fetch(
+        //   "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
+        // {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userInput: userMessage,
+          // lat: presentLocation?.latitude,
+          // long: presentLocation?.longitude,
+          dateTime: new Date().toISOString(),
+          model: "gpt-4",
+          // Include other relevant data if necessary
+        }),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -292,6 +295,8 @@ const App = () => {
       }
     } catch (error) {
       console.error("Error while submitting:", error);
+    } finally {
+      setIsSubmitting(false); // Stop loading
     }
   };
 
@@ -304,8 +309,8 @@ const App = () => {
       }));
 
       const response = await axios.post(
-        // "http://192.168.1.151:3000/openai/update-content",
-        "https://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
+        "http://192.168.1.151:3000/openai/update-content",
+        // "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
         {
           newContent: updatedContent,
         }
@@ -482,13 +487,16 @@ const App = () => {
             <button
               className="btn btn-success me-2 px-4"
               onClick={handleSubmit}
-              disabled={
-                currentForm?.fields?.length === 0 ||
-                currentForm?.fields[currentForm?.fields?.length - 1]?.role !==
-                  "user"
-              }
+              disabled={isSubmitting}
             >
-              Submit
+              {isSubmitting ? (
+                <>
+                  <div className="spinner" aria-hidden="true"></div>
+                  &nbsp;Submitting...
+                </>
+              ) : (
+                "Submit"
+              )}
             </button>
           </div>
         </div>
