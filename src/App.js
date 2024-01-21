@@ -12,6 +12,8 @@ const App = () => {
   const [currentForm, setCurrentForm] = useState(null);
   const [highestVersion, setHighestVersion] = useState(1.0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [latitudeInput, setLatitudeInput] = useState("");
+  const [longitudeInput, setLongitudeInput] = useState("");
   const textAreaRef = useRef([]);
 
   useEffect(() => {
@@ -231,11 +233,28 @@ const App = () => {
 
     setIsSubmitting(true);
 
+    const enteredLatitude = parseFloat(latitudeInput);
+    const enteredLongitude = parseFloat(longitudeInput);
+
+    // Check if latitude and longitude are valid numbers
+    if (isNaN(enteredLatitude) || isNaN(enteredLongitude)) {
+      console.error("Invalid latitude or longitude.");
+      setIsSubmitting(false);
+      return;
+    }
+
     // Assuming the user message is the last field in the current form.
     const userMessage =
       currentForm.fields[currentForm.fields.length - 1].content;
 
     try {
+      const requestData = {
+        userInput: userMessage,
+        lat: enteredLatitude,
+        long: enteredLongitude,
+        dateTime: new Date().toISOString(),
+        model: "gpt-4",
+      };
       // const response = await fetch("http://192.168.1.151:3000/openai/message", {
       const response = await fetch(
         "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
@@ -244,14 +263,7 @@ const App = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            userInput: userMessage,
-            // lat: presentLocation?.latitude,
-            // long: presentLocation?.longitude,
-            dateTime: new Date().toISOString(),
-            model: "gpt-4",
-            // Include other relevant data if necessary
-          }),
+          body: JSON.stringify(requestData),
         }
       );
 
@@ -436,6 +448,33 @@ const App = () => {
                       ?.name || ""
                   }
                   onChange={(e) => handleVersionNameChange(e, currentVersion)}
+                />
+              </div>
+              <div className="col-md-3 mt-1">
+                <label htmlFor="latitudeInput" className="form-label">
+                  Latitude:
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  id="latitudeInput"
+                  placeholder="Enter latitude"
+                  value={latitudeInput}
+                  onChange={(e) => setLatitudeInput(e.target.value)}
+                />
+              </div>
+
+              <div className="col-md-3 mt-1">
+                <label htmlFor="longitudeInput" className="form-label">
+                  Longitude:
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
+                  id="longitudeInput"
+                  placeholder="Enter longitude"
+                  value={longitudeInput}
+                  onChange={(e) => setLongitudeInput(e.target.value)}
                 />
               </div>
             </div>
