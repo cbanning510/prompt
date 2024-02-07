@@ -3,8 +3,8 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
-// const BASE_URL = "http://localhost:3000/versions";
-const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
+const BASE_URL = "http://localhost:3000/versions";
+// const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
 
 const App = () => {
   const [forms, setForms] = useState([]);
@@ -14,7 +14,10 @@ const App = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [latitudeInput, setLatitudeInput] = useState("");
   const [longitudeInput, setLongitudeInput] = useState("");
+  const [imageUrl, setImageUrl] = useState(null);
+  // const [imageBase64, setImageBase64] = useState("");
   const textAreaRef = useRef([]);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     axios
@@ -253,19 +256,20 @@ const App = () => {
         lat: enteredLatitude,
         long: enteredLongitude,
         dateTime: new Date().toISOString(),
-        model: "gpt-4",
+        model: "gpt-4-vision-preview",
+        url: imageUrl,
+        // imageBase64: imageBase64,
       };
-      // const response = await fetch("http://192.168.1.151:3000/openai/message", {
-      const response = await fetch(
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestData),
-        }
-      );
+      const response = await fetch("http://192.168.1.151:3000/openai/message", {
+        // const response = await fetch(
+        //   "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
+        //   {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -298,7 +302,7 @@ const App = () => {
           updatedFormFromBackend.fields
         );
 
-        console.log("Updated form from response:", updatedFormFromBackend);
+        // console.log("Updated form from response:", updatedFormFromBackend);
 
         // Update the current form and forms array with the sorted data from the backend
         setCurrentForm(updatedFormFromBackend);
@@ -322,8 +326,8 @@ const App = () => {
       }));
 
       const response = await axios.post(
-        // "http://192.168.1.151:3000/openai/update-content",
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
+        "http://192.168.1.151:3000/openai/update-content",
+        // "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
         {
           newContent: updatedContent,
         }
@@ -381,6 +385,54 @@ const App = () => {
       console.error("Error updating form with new field:", error);
     }
   };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      console.error("No file selected for upload");
+      return;
+    }
+
+    console.log("File selected:", file);
+
+    try {
+      // Step 1: Request a pre-signed URL from your backend
+      const { data } = await axios.post(
+        "http://localhost:3000/generate-presigned-url",
+        {
+          fileName: file.name,
+          fileType: file.type,
+        }
+      );
+
+      // Adjusted to correctly extract the URLs based on your backend response structure
+      const { url: signedRequest, publicUrl } = data.url;
+      console.log("Pre-signed URL:", signedRequest);
+      console.log("S3 URL:", publicUrl);
+
+      // Step 2: Upload the file to S3 using the pre-signed URL
+      const uploadResult = await fetch(signedRequest, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
+      });
+
+      console.log("uploadResult", uploadResult);
+
+      if (uploadResult.ok) {
+        console.log("Upload successful");
+        setImageUrl(publicUrl); // Set the S3 URL of the uploaded file to the state
+      } else {
+        throw new Error("Failed to upload file to S3");
+      }
+    } catch (error) {
+      console.error("Error during file upload\n", error);
+    }
+  };
+
+  console.log("imageUrl", imageUrl);
 
   return (
     <div className="container mt-5">
@@ -509,6 +561,36 @@ const App = () => {
                 </button>
               )}
             </div>
+            {field.role === "user" && (
+              <div className="row mt-3">
+                <div className="col-md-1"></div>
+                <div className="col-md-3">
+                  <div className="mb-3">
+                    <label htmlFor="imageUpload" className="form-label">
+                      Upload Image:
+                    </label>
+                    {/* {field.content[1].image_url && (
+                      <div>
+                        <img
+                          src={field.content[1].image_url.url}
+                          alt="Current"
+                          style={{ width: "100px", height: "auto" }}
+                        />
+                        <p>Current Image</p>
+                      </div>
+                    )} */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="form-control"
+                      id="imageUpload"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </form>
