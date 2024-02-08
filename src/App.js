@@ -228,6 +228,18 @@ const App = () => {
     }
   };
 
+  const updateUserMessageWithImageUrl = (imageUrl) => {
+    const updatedFields = currentForm.fields.map((field, index) => {
+      // Assuming the user message is the last field in the form
+      if (index === currentForm.fields.length - 1 && field.role === "user") {
+        return { ...field, content: `${field.content} ${imageUrl}` };
+      }
+      return field;
+    });
+
+    setCurrentForm({ ...currentForm, fields: updatedFields });
+  };
+
   const handleSubmit = async () => {
     if (!currentForm?.fields) {
       console.error("Current form or fields is undefined.");
@@ -239,31 +251,38 @@ const App = () => {
     const enteredLatitude = parseFloat(latitudeInput);
     const enteredLongitude = parseFloat(longitudeInput);
 
-    // Check if latitude and longitude are valid numbers
+    // Validate latitude and longitude
     if (isNaN(enteredLatitude) || isNaN(enteredLongitude)) {
       console.error("Invalid latitude or longitude.");
       setIsSubmitting(false);
       return;
     }
 
-    // Assuming the user message is the last field in the current form.
-    const userMessage =
-      currentForm.fields[currentForm.fields.length - 1].content;
+    // Function to update user message with the image URL
+    const updateUserMessageWithImageUrl = async () => {
+      // Assuming the user message is the last field in the form
+      let userMessage =
+        currentForm.fields[currentForm.fields.length - 1].content;
+      if (imageUrl) {
+        userMessage += ` ${imageUrl}`;
+      }
+      return userMessage;
+    };
 
     try {
+      const userMessage = await updateUserMessageWithImageUrl();
+      // Construct the request payload
       const requestData = {
         userInput: userMessage,
         lat: enteredLatitude,
         long: enteredLongitude,
         dateTime: new Date().toISOString(),
         model: "gpt-4-vision-preview",
-        url: imageUrl,
-        // imageBase64: imageBase64,
+        imageUrl: imageUrl,
       };
+
+      // Make the API call
       const response = await fetch("http://192.168.1.151:3000/openai/message", {
-        // const response = await fetch(
-        //   "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
-        //   {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -276,44 +295,35 @@ const App = () => {
       }
 
       const data = await response.json();
-      const botResponse = data.response; // Adjust this according to your API response structure
+      const botResponse = data.response; // Use this response to update the form
 
+      // Append the assistant's response to the form
       const updatedFields = [
-        ...currentForm.fields,
-        { role: "assistant", content: botResponse },
+        ...currentForm.fields.slice(0, -1), // Copy all but the last user's message
+        { role: "user", content: userMessage }, // Update the last user message with the image URL
+        { role: "assistant", content: botResponse }, // Add the new assistant message
       ];
 
+      // Update the form with the new fields
       const updatedForm = {
         ...currentForm,
         fields: updatedFields,
-        name: currentForm.name,
       };
 
-      // Update the backend with the new field value
-      try {
-        const backendResponse = await axios.put(
-          `${BASE_URL}/${currentForm.id}`,
-          updatedForm
-        );
-        let updatedFormFromBackend = backendResponse.data;
+      // Submit the updated form to the backend
+      const backendResponse = await axios.put(
+        `${BASE_URL}/${currentForm.id}`,
+        updatedForm
+      );
+      let updatedFormFromBackend = backendResponse.data;
 
-        // Sort the fields by ID before updating the state
-        updatedFormFromBackend.fields = sortFieldsById(
-          updatedFormFromBackend.fields
-        );
-
-        // console.log("Updated form from response:", updatedFormFromBackend);
-
-        // Update the current form and forms array with the sorted data from the backend
-        setCurrentForm(updatedFormFromBackend);
-        updateFormInState(updatedFormFromBackend);
-      } catch (backendError) {
-        console.error("Error updating form in backend:", backendError);
-      }
+      // Update the local state to reflect the changes
+      setCurrentForm(updatedFormFromBackend);
+      updateFormInState(updatedFormFromBackend);
     } catch (error) {
-      console.error("Error while submitting:", error);
+      console.error("Error during submission:", error);
     } finally {
-      setIsSubmitting(false); // Stop loading
+      setIsSubmitting(false); // Reset submission state
     }
   };
 
