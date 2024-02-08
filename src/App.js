@@ -12,9 +12,12 @@ const App = () => {
   const [currentForm, setCurrentForm] = useState(null);
   const [highestVersion, setHighestVersion] = useState(1.0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [latitudeInput, setLatitudeInput] = useState("");
-  const [longitudeInput, setLongitudeInput] = useState("");
+  const [latitudeInput, setLatitudeInput] = useState("37.234332396");
+  const [longitudeInput, setLongitudeInput] = useState("-115.80666344");
   const [imageUrl, setImageUrl] = useState(null);
+  const [imagePreviews, setImagePreviews] = useState({});
+  console.log("imagePreviews", imagePreviews);
+
   // const [imageBase64, setImageBase64] = useState("");
   const textAreaRef = useRef([]);
   const fileInputRef = useRef(null);
@@ -52,6 +55,27 @@ const App = () => {
   useEffect(() => {
     if (currentForm && currentForm.fields) {
       currentForm.fields.forEach((_, index) => adjustHeight(index));
+    }
+  }, [currentForm]);
+
+  useEffect(() => {
+    if (currentForm && currentForm.fields) {
+      currentForm.fields.forEach(async (field, index) => {
+        if (field.role === "user") {
+          const { urls } = removeUrlsAndPopulateDiv(field.content);
+          if (urls && urls.length > 0) {
+            setImagePreviews((prevState) => ({
+              ...prevState,
+              [index]: urls[0], // Assuming only one URL is present
+            }));
+          } else {
+            setImagePreviews((prevState) => ({
+              ...prevState,
+              [index]: null, // Set image preview to null if no URLs are found
+            }));
+          }
+        }
+      });
     }
   }, [currentForm]);
 
@@ -166,6 +190,12 @@ const App = () => {
       setForms(sortedForms);
       setCurrentVersion(newVersionNumber);
       setCurrentForm(response.data);
+
+      // Reset image previews and other relevant fields
+      setImagePreviews({});
+      setLatitudeInput("37.234332396");
+      setLongitudeInput("-115.80666344");
+      setImageUrl(null);
     } catch (error) {
       console.error("Error creating new version:", error);
     }
@@ -228,17 +258,17 @@ const App = () => {
     }
   };
 
-  const updateUserMessageWithImageUrl = (imageUrl) => {
-    const updatedFields = currentForm.fields.map((field, index) => {
-      // Assuming the user message is the last field in the form
-      if (index === currentForm.fields.length - 1 && field.role === "user") {
-        return { ...field, content: `${field.content} ${imageUrl}` };
-      }
-      return field;
-    });
+  // const updateUserMessageWithImageUrl = (imageUrl) => {
+  //   const updatedFields = currentForm.fields.map((field, index) => {
+  //     // Assuming the user message is the last field in the form
+  //     if (index === currentForm.fields.length - 1 && field.role === "user") {
+  //       return { ...field, content: `${field.content} ${imageUrl}` };
+  //     }
+  //     return field;
+  //   });
 
-    setCurrentForm({ ...currentForm, fields: updatedFields });
-  };
+  //   setCurrentForm({ ...currentForm, fields: updatedFields });
+  // };
 
   const handleSubmit = async () => {
     if (!currentForm?.fields) {
@@ -264,7 +294,7 @@ const App = () => {
       let userMessage =
         currentForm.fields[currentForm.fields.length - 1].content;
       if (imageUrl) {
-        userMessage += ` ${imageUrl}`;
+        userMessage += ` (${imageUrl})`;
       }
       return userMessage;
     };
@@ -316,6 +346,11 @@ const App = () => {
         updatedForm
       );
       let updatedFormFromBackend = backendResponse.data;
+
+      // Ensure that the fields are sorted by ID
+      updatedFormFromBackend.fields = sortFieldsById(
+        updatedFormFromBackend.fields
+      );
 
       // Update the local state to reflect the changes
       setCurrentForm(updatedFormFromBackend);
@@ -396,14 +431,13 @@ const App = () => {
     }
   };
 
-  const handleImageUpload = async (event) => {
+  const handleImageUpload = async (event, fieldIndex) => {
+    console.log("Image upload event:", fieldIndex);
     const file = event.target.files[0];
     if (!file) {
       console.error("No file selected for upload");
       return;
     }
-
-    console.log("File selected:", file);
 
     try {
       // Step 1: Request a pre-signed URL from your backend
@@ -429,7 +463,12 @@ const App = () => {
         body: file,
       });
 
-      console.log("uploadResult", uploadResult);
+      setImagePreviews((prevPreviews) => ({
+        ...prevPreviews,
+        [fieldIndex]: publicUrl,
+      }));
+
+      // console.log("uploadResult", uploadResult);
 
       if (uploadResult.ok) {
         console.log("Upload successful");
@@ -443,6 +482,19 @@ const App = () => {
   };
 
   console.log("imageUrl", imageUrl);
+
+  function removeUrls(text) {
+    const urlPattern = /(https?|ftp):\/\/[^\s/$.?#].[^\s)]*/gi; // Updated regex
+    const cleanedText = text.replace(urlPattern, "").replace(/\([^)]*\)/g, ""); // Remove URLs and content within parentheses
+    return cleanedText;
+  }
+
+  const removeUrlsAndPopulateDiv = (text) => {
+    const urlPattern = /(https?|ftp):\/\/[^\s/$.?#].[^\s)]*/gi;
+    const cleanedText = text.replace(urlPattern, "").replace(/\([^)]*\)/g, "");
+    const urls = text.match(urlPattern);
+    return { cleanedText, urls };
+  };
 
   return (
     <div className="container mt-5">
@@ -556,7 +608,11 @@ const App = () => {
               <textarea
                 ref={(el) => (textAreaRef.current[index] = el)}
                 className="form-control"
-                value={field.content}
+                value={
+                  field.role === "user"
+                    ? removeUrls(field.content)
+                    : field.content
+                }
                 onChange={(e) => handleFieldChange(index, e.target.value)}
                 style={{ overflowY: "hidden" }}
               />
@@ -579,6 +635,15 @@ const App = () => {
                     <label htmlFor="imageUpload" className="form-label">
                       Upload Image:
                     </label>
+                    {imagePreviews[index] && (
+                      <div style={{ margin: "10px 0" }}>
+                        <img
+                          src={imagePreviews[index]}
+                          alt="Preview"
+                          style={{ width: "100%", maxHeight: "300px" }}
+                        />
+                      </div>
+                    )}
                     {/* {field.content[1].image_url && (
                       <div>
                         <img
@@ -595,7 +660,7 @@ const App = () => {
                       className="form-control"
                       id="imageUpload"
                       accept="image/*"
-                      onChange={handleImageUpload}
+                      onChange={(e) => handleImageUpload(e, index)}
                     />
                   </div>
                 </div>
@@ -619,7 +684,14 @@ const App = () => {
             <button
               className="btn btn-success me-2 px-4"
               onClick={handleSubmit}
-              disabled={isSubmitting}
+              disabled={
+                isSubmitting ||
+                (currentForm &&
+                  currentForm.fields &&
+                  currentForm.fields.length > 0 &&
+                  currentForm.fields[currentForm.fields.length - 1].role !==
+                    "user")
+              }
             >
               {isSubmitting ? (
                 <>
