@@ -193,8 +193,8 @@ const App = () => {
 
       // Reset image previews and other relevant fields
       setImagePreviews({});
-      setLatitudeInput("37.234332396");
-      setLongitudeInput("-115.80666344");
+      setLatitudeInput("");
+      setLongitudeInput("");
       setImageUrl(null);
     } catch (error) {
       console.error("Error creating new version:", error);
