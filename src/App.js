@@ -12,8 +12,8 @@ const App = () => {
   const [currentForm, setCurrentForm] = useState(null);
   const [highestVersion, setHighestVersion] = useState(1.0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [latitudeInput, setLatitudeInput] = useState("37.234332396");
-  const [longitudeInput, setLongitudeInput] = useState("-115.80666344");
+  const [latitudeInput, setLatitudeInput] = useState("");
+  const [longitudeInput, setLongitudeInput] = useState("");
   const [imageUrl, setImageUrl] = useState(null);
   const [imagePreviews, setImagePreviews] = useState({});
   console.log("imagePreviews", imagePreviews);
