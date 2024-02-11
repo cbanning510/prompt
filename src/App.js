@@ -3,8 +3,8 @@ import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
-// const BASE_URL = "http://localhost:3000/versions";
-const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
+const BASE_URL = "http://localhost:3000/versions";
+// const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
 
 const App = () => {
   const [forms, setForms] = useState([]);
@@ -16,7 +16,7 @@ const App = () => {
   const [longitudeInput, setLongitudeInput] = useState("");
   const [imageUrl, setImageUrl] = useState(null);
   const [imagePreviews, setImagePreviews] = useState({});
-  console.log("imagePreviews", imagePreviews);
+  // console.log("imagePreviews", imagePreviews);
 
   // const [imageBase64, setImageBase64] = useState("");
   const textAreaRef = useRef([]);
@@ -312,17 +312,16 @@ const App = () => {
       };
 
       // Make the API call
-      // const response = await fetch("http://192.168.1.151:3000/openai/message", {
-      const response = await fetch(
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestData),
-        }
-      );
+      const response = await fetch("http://192.168.1.151:3000/openai/message", {
+        // const response = await fetch(
+        //   "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
+        //   {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestData),
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -375,8 +374,8 @@ const App = () => {
       }));
 
       const response = await axios.post(
-        // "http://192.168.1.151:3000/openai/update-content",
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
+        "http://192.168.1.151:3000/openai/update-content",
+        // "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
         {
           newContent: updatedContent,
         }
@@ -446,8 +445,8 @@ const App = () => {
     try {
       // Step 1: Request a pre-signed URL from your backend
       const { data } = await axios.post(
-        // "http://localhost:3000/generate-presigned-url",
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/generate-presigned-url",
+        "http://localhost:3000/generate-presigned-url",
+        // "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/generate-presigned-url",
         {
           fileName: file.name,
           fileType: file.type,
@@ -486,7 +485,7 @@ const App = () => {
     }
   };
 
-  console.log("imageUrl", imageUrl);
+  // console.log("imageUrl", imageUrl);
 
   function removeUrls(text) {
     const urlPattern = /(https?|ftp):\/\/[^\s/$.?#].[^\s)]*/gi; // Updated regex
@@ -691,11 +690,13 @@ const App = () => {
               onClick={handleSubmit}
               disabled={
                 isSubmitting ||
-                (currentForm &&
-                  currentForm.fields &&
-                  currentForm.fields.length > 0 &&
-                  currentForm.fields[currentForm.fields.length - 1].role !==
-                    "user")
+                !currentForm ||
+                !currentForm.fields ||
+                currentForm.fields.length === 0 ||
+                currentForm.fields[currentForm.fields.length - 1].role !==
+                  "user" ||
+                isNaN(parseFloat(latitudeInput)) ||
+                isNaN(parseFloat(longitudeInput))
               }
             >
               {isSubmitting ? (
