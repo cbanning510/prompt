@@ -16,7 +16,7 @@ const App = () => {
   const [longitudeInput, setLongitudeInput] = useState("");
   const [imageUrl, setImageUrl] = useState(null);
   const [imagePreviews, setImagePreviews] = useState({});
-  // console.log("imagePreviews", imagePreviews);
+  const [isImageUploading, setIsImageUploading] = useState(false);
 
   // const [imageBase64, setImageBase64] = useState("");
   const textAreaRef = useRef([]);
@@ -160,13 +160,13 @@ const App = () => {
   };
 
   const updateFormInState = (updatedForm) => {
-    console.log("Updating form in state", updatedForm);
+    // console.log("Updating form in state", updatedForm);
     const updatedForms = forms.map((form) =>
       form.id === updatedForm.id
         ? { ...updatedForm, fields: sortFieldsById(updatedForm.fields) }
         : form
     );
-    console.log("Updated forms:", updatedForms);
+    // console.log("Updated forms:", updatedForms);
 
     setForms(updatedForms);
   };
@@ -329,6 +329,7 @@ const App = () => {
 
       const data = await response.json();
       const botResponse = data.response; // Use this response to update the form
+      // console.log("Bot response:", botResponse);
 
       // Append the assistant's response to the form
       const updatedFields = [
@@ -343,12 +344,15 @@ const App = () => {
         fields: updatedFields,
       };
 
+      console.log("Updated form:", updatedForm.fields);
+
       // Submit the updated form to the backend
       const backendResponse = await axios.put(
         `${BASE_URL}/${currentForm.id}`,
         updatedForm
       );
       let updatedFormFromBackend = backendResponse.data;
+      console.log("Updated form from backend:", updatedFormFromBackend.fields);
 
       // Ensure that the fields are sorted by ID
       updatedFormFromBackend.fields = sortFieldsById(
@@ -358,6 +362,7 @@ const App = () => {
       // Update the local state to reflect the changes
       setCurrentForm(updatedFormFromBackend);
       updateFormInState(updatedFormFromBackend);
+      setImageUrl(null);
     } catch (error) {
       console.error("Error during submission:", error);
     } finally {
@@ -442,6 +447,8 @@ const App = () => {
       return;
     }
 
+    setIsImageUploading(true);
+
     try {
       // Step 1: Request a pre-signed URL from your backend
       const { data } = await axios.post(
@@ -477,11 +484,13 @@ const App = () => {
       if (uploadResult.ok) {
         console.log("Upload successful");
         setImageUrl(publicUrl); // Set the S3 URL of the uploaded file to the state
+        setIsImageUploading(false);
       } else {
         throw new Error("Failed to upload file to S3");
       }
     } catch (error) {
       console.error("Error during file upload\n", error);
+      setIsImageUploading(false);
     }
   };
 
@@ -696,7 +705,8 @@ const App = () => {
                 currentForm.fields[currentForm.fields.length - 1].role !==
                   "user" ||
                 isNaN(parseFloat(latitudeInput)) ||
-                isNaN(parseFloat(longitudeInput))
+                isNaN(parseFloat(longitudeInput)) ||
+                isImageUploading // Disable if the image is still uploading
               }
             >
               {isSubmitting ? (
