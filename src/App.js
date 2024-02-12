@@ -4,7 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
 // const BASE_URL = "http://localhost:3000/versions";
-const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/versions";
+const BASE_URL = "http://ec2-3-82-165-10.compute-1.amazonaws.com:3001/versions";
 
 const App = () => {
   const [forms, setForms] = useState([]);
@@ -314,7 +314,7 @@ const App = () => {
       // Make the API call
       // const response = await fetch("http://192.168.1.151:3000/openai/message", {
       const response = await fetch(
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/message",
+        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3001/openai/message",
         {
           method: "POST",
           headers: {
@@ -381,7 +381,7 @@ const App = () => {
 
       const response = await axios.post(
         // "http://192.168.1.151:3000/openai/update-content",
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/openai/update-content",
+        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3001/openai/update-content",
         {
           newContent: updatedContent,
         }
@@ -454,7 +454,7 @@ const App = () => {
       // Step 1: Request a pre-signed URL from your backend
       const { data } = await axios.post(
         // "http://localhost:3000/generate-presigned-url",
-        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3000/generate-presigned-url",
+        "http://ec2-3-82-165-10.compute-1.amazonaws.com:3001/generate-presigned-url",
         {
           fileName: file.name,
           fileType: file.type,
